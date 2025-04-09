@@ -28,7 +28,7 @@ qc.config = {
 
 @tool
 def create_chart(
-    width: int = 300,
+    width: int = 800,
     height: int = 500,
     chart_type: str = "bar",
     datasets_label: str = "",
@@ -47,7 +47,7 @@ def create_chart(
         "type": chart_type,
         "data": {
             "labels": labels,
-            "datasets": [{"label": datasets_label, "data": data}],
+            "datasets": [{"label": datasets_label, "data": data, "fill": False}],
         },
     }
     return qc.get_short_url()

@@ -5,14 +5,27 @@ import uuid
 import gradio as gr
 from analysis_agent import agent_executor
 
+def same_auth(username, password):
+    return username == password
+
 def main():
-
-    def gr_interface(message, history):
+    async def gr_interface(message, history, request: gr.Request):
         logging.info(message)
+        logging.info(f"request.client.host {request.client.host}")
+        logging.info(f"Client port: {request.client.port}")
+        logging.info(f"Request method: {request.method}")
+        logging.info(f"Request headers: {request.headers}")
+        logging.info(f"Request URL: {request.url}")
+        logging.info(f"Request query parameters: {request.query_params}")
+        logging.info(f"Request cookies: {request.cookies}")
+        logging.info(f"Request body: {request.body}")
+        logging.info(f"Client information: {request.client}")
         request_message = message["text"] if isinstance(message, dict) else message
-        config = {"configurable": {"thread_id": conversation_id}}
+        config = {"configurable": {"thread_id": request.username}}
+        logging.info(f"Request message: {request_message}")
+        logging.info(f"Request config: {config}")
 
-        response = agent_executor.invoke(
+        response = await agent_executor.ainvoke(
             {"messages": [("user", request_message)]}, config=config
         )
         logging.info(response['messages'][-1].content)
@@ -37,7 +50,7 @@ def main():
             "Tekil sınıfları listele.",
             "Toplam kaç adet istek gelmiş?",
         ],
-    ).launch(pwa=True, share=True)
+    ).launch(auth=same_auth, pwa=True, share=True)
     #     multimodal=True,
     #     chatbot=gr.Chatbot(height=800),
     #     textbox=gr.Textbox(placeholder="Enter your question !", container=False, scale=7),
