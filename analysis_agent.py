@@ -20,12 +20,14 @@ from dotenv import load_dotenv
 
 from typing import List, Optional, Union, Literal, Dict
 from pydantic import BaseModel, Field
+import pandas as pd
 
 
 class Dataset(BaseModel):
     label: Optional[str] = Field(None, description="The label for the dataset.")
     data: List[Union[int, float, dict]] = Field(
-        ..., description="The data points for the dataset. Should be in {x, y} format for scatter charts."
+        ...,
+        description="The data points for the dataset. Should be in {x, y} format for scatter charts.",
     )
     backgroundColor: Optional[Union[str, List[str]]] = Field(
         None, description="Background color(s) for the dataset."
@@ -47,7 +49,9 @@ class Dataset(BaseModel):
 
 
 class Data(BaseModel):
-    labels: Optional[List[Union[int, str]]] = Field(None, description="Labels for the X-axis. Not used with scatter charts.")
+    labels: Optional[List[Union[int, str]]] = Field(
+        None, description="Labels for the X-axis. Not used with scatter charts."
+    )
     datasets: List[Dataset] = Field(..., description="List of datasets to be plotted.")
 
 
@@ -133,6 +137,8 @@ class QuickChartConfig(BaseModel):
     format: Optional[Literal["png", "jpeg", "webp", "svg"]] = Field(
         "png", description="Format of the chart image."
     )
+
+
 class CreateChartInput(BaseModel):
     config: QuickChartConfig = Field(..., description="QuickChart configuration.")
     width: Optional[int] = Field(500, description="Width of the chart.")
@@ -141,11 +147,19 @@ class CreateChartInput(BaseModel):
         "png", description="Format of the chart image."
     )
 
+
 load_dotenv()
 
 
 @tool("create_chart", args_schema=QuickChartConfig, return_direct=True)
-def create_chart(type: str="bar", data: Data=None, options: Options=None, width: int=500, height: int=300, format: str="png") -> str:
+def create_chart(
+    type: str = "bar",
+    data: Data = None,
+    options: Options = None,
+    width: int = 500,
+    height: int = 300,
+    format: str = "png",
+) -> str:
     """Create a chart using QuickChart and return the URL. All parameters should conform to QuickChart API.
     Args:
         type (str): Type of the chart (e.g., 'bar', 'line').
@@ -169,7 +183,7 @@ def create_chart(type: str="bar", data: Data=None, options: Options=None, width:
         data_dict = data.model_dump(exclude_none=True)
     else:
         data_dict = {}
-    if options: 
+    if options:
         options_dict = options.model_dump(exclude_none=True)
     else:
         options_dict = {}
@@ -238,6 +252,32 @@ def get_engine_for_db(url: str) -> create_engine:
     )
 
 
+@tool
+def load_excel_to_db(file_path: str, table_name: str) -> str:
+    """Load an Excel file into the database as a table.
+    Args:
+        file_path (str): Path to the Excel file.
+        table_name (str): Name of the table to create in the database.
+    Returns:
+        str: Success message or error message.
+    """
+
+    try:
+        # Read the Excel file into a DataFrame
+        df = pd.read_excel(file_path)
+
+        with engine.connect() as conn, conn.begin():
+            # Load the DataFrame into the database
+            df.to_sql(table_name, con=conn, if_exists="replace", index=False)
+
+            return (
+                f"Excel file '{file_path}' successfully loaded into table '{table_name}'."
+            )
+    except Exception as e:
+        logging.error(f"Error loading Excel file to database: {e}")
+        return f"Failed to load Excel file '{file_path}' into table '{table_name}': {e}"
+
+
 engine = get_engine_for_db(
     "sqlite:////Users/mervesarac/Development/eguven/analiz/crm_subat.db"
 )
@@ -254,7 +294,7 @@ print(prompt_template.input_variables)
 system_message = prompt_template.format(dialect="SQLite", top_k=5)
 system_message = (
     system_message
-    + "\nYou may use create_chart to create a chart." # The function signature is:\ncreate_chart(width: int=300, height: int=500, chart_type: str='bar', datasets_label: str='', labels: list=None, data: list=None) -> str\n"
+    + "\nYou may use create_chart to create a chart."  # The function signature is:\ncreate_chart(width: int=300, height: int=500, chart_type: str='bar', datasets_label: str='', labels: list=None, data: list=None) -> str\n"
 )
 print(system_message)
 checkpointer = MemorySaver()
