@@ -259,8 +259,5 @@ system_message = (
 print(system_message)
 checkpointer = MemorySaver()
 agent_executor = create_react_agent(
-    llm, tool_list, prompt=system_message, checkpointer=checkpointer, debug=True
+    llm, tool_list, prompt=system_message, checkpointer=checkpointer #, debug=True
 )
-config_data = {'type': 'bar', 'data': {'labels': ['WEB', 'TEKNİK DESTEK', 'YENİLEME BAŞVURUSU', 'SERTİFİKA AKTARIM', 'DİĞER'], 'datasets': [{'label': 'Sınıf Dağılımları', 'data': [101, 76, 73, 60, 51], 'backgroundColor': ['rgba(75, 192, 192, 0.2)', 'rgba(153, 102, 255, 0.2)', 'rgba(255, 159, 64, 0.2)', 'rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)'], 'borderColor': 'rgba(75, 192, 192, 1)', 'borderWidth': 1}]}, 'options': {'responsive': True, 'title': {'display': True, 'text': 'crm_subat Sınıf Dağılımları'}, 'legend': {'display': True, 'position': 'top'}, 'scales': {'yAxes': [{'ticks': {'beginAtZero': True}}]}}}
-chart_config = QuickChartConfig(**config_data)
-print(chart_config.model_dump(exclude_none=True))

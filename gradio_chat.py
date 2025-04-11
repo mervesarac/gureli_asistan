@@ -39,6 +39,7 @@ def main():
         examples=[
             "Analiz yapabileceğim veriler nelerdir?",
         ],
+        autofocus=True,
     ).launch(pwa=True, share=True) # auth=same_auth, 
     #     multimodal=True,
     #     chatbot=gr.Chatbot(height=800),
