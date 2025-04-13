@@ -27,7 +27,7 @@ class Dataset(BaseModel):
     label: Optional[str] = Field(None, description="The label for the dataset.")
     data: List[Union[int, float, dict]] = Field(
         ...,
-        description="The data points for the dataset. Should be in {x, y} format for scatter charts.",
+        description="The data points for the dataset. Should be in {x, y} format for scatter charts, and in {x, y, r} format for bubble charts.",
     )
     backgroundColor: Optional[Union[str, List[str]]] = Field(
         None, description="Background color(s) for the dataset."
@@ -151,7 +151,8 @@ class CreateChartInput(BaseModel):
 load_dotenv()
 
 
-@tool("create_chart", args_schema=QuickChartConfig, return_direct=True)
+# @tool("create_chart", args_schema=QuickChartConfig, return_direct=True)
+@tool()
 def create_chart(
     type: str = "bar",
     data: Data = None,
@@ -193,7 +194,8 @@ def create_chart(
         "options": options_dict,
     }
     qc.format = format
-    return qc.get_short_url()
+    chart_url = qc.get_short_url()
+    return f"This is the requested chart ![Chart]({qc.get_short_url()}) and the URL is {chart_url}. Share both!"
 
 
 # @tool
@@ -270,9 +272,7 @@ def load_excel_to_db(file_path: str, table_name: str) -> str:
             # Load the DataFrame into the database
             df.to_sql(table_name, con=conn, if_exists="replace", index=False)
 
-            return (
-                f"Excel file '{file_path}' successfully loaded into table '{table_name}'."
-            )
+            return f"Excel file '{file_path}' successfully loaded into table '{table_name}'."
     except Exception as e:
         logging.error(f"Error loading Excel file to database: {e}")
         return f"Failed to load Excel file '{file_path}' into table '{table_name}': {e}"
@@ -294,10 +294,11 @@ print(prompt_template.input_variables)
 system_message = prompt_template.format(dialect="SQLite", top_k=5)
 system_message = (
     system_message
-    + "\nYou may use create_chart to create a chart."  # The function signature is:\ncreate_chart(width: int=300, height: int=500, chart_type: str='bar', datasets_label: str='', labels: list=None, data: list=None) -> str\n"
+    + "\nYou may use create_chart to create a chart."
+    + "\nDo not answer general cultural questions. Refuse them politely."
 )
-print(system_message)
+print(f"System message: {system_message}")
 checkpointer = MemorySaver()
 agent_executor = create_react_agent(
-    llm, tool_list, prompt=system_message, checkpointer=checkpointer #, debug=True
+    llm, tool_list, prompt=system_message, checkpointer=checkpointer, debug=True
 )
