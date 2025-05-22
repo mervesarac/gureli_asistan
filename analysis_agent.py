@@ -50,7 +50,7 @@ class Dataset(BaseModel):
 
 class Data(BaseModel):
     labels: Optional[List[Union[int, str]]] = Field(
-        None, description="Labels for the X-axis. Not used with scatter charts."
+        None, description="Labels for the X-axis. Not used with scatter charts, nor with bubble charts."
     )
     datasets: List[Dataset] = Field(..., description="List of datasets to be plotted.")
 
@@ -132,8 +132,8 @@ class QuickChartConfig(BaseModel):
     type: str = Field(..., description="Type of the chart, e.g., bar, line.")
     data: Data = Field(..., description="Chart data including labels and datasets.")
     options: Optional[Options] = Field(None, description="Additional chart options.")
-    width: Optional[int] = Field(500, description="Width of the chart.")
-    height: Optional[int] = Field(300, description="Height of the chart.")
+    width: Optional[int] = Field(..., description="Width of the chart.")
+    height: Optional[int] = Field(..., description="Height of the chart.")
     format: Optional[Literal["png", "jpeg", "webp", "svg"]] = Field(
         "png", description="Format of the chart image."
     )
@@ -151,8 +151,7 @@ class CreateChartInput(BaseModel):
 load_dotenv()
 
 
-# @tool("create_chart", args_schema=QuickChartConfig, return_direct=True)
-@tool()
+@tool("create_chart", args_schema=QuickChartConfig, return_direct=True)
 def create_chart(
     type: str = "bar",
     data: Data = None,
@@ -172,30 +171,34 @@ def create_chart(
     Returns:
         str: URL of the generated chart.
     """
-    logging.info(
-        f"Creating chart with type={type}, width={width}, height={height}, format={format}, data={data}, options={options}"
-    )
-    qc = QuickChart()
-    # Set the chart width and height
-    qc.width = width
-    qc.height = height
-    # qc.config = config.model_dump(exclude_none=True)
-    if data:
-        data_dict = data.model_dump(exclude_none=True)
-    else:
-        data_dict = {}
-    if options:
-        options_dict = options.model_dump(exclude_none=True)
-    else:
-        options_dict = {}
-    qc.config = {
-        "type": type,
-        "data": data_dict,
-        "options": options_dict,
-    }
-    qc.format = format
-    chart_url = qc.get_short_url()
-    return f"This is the requested chart ![Chart]({qc.get_short_url()}) and the URL is {chart_url}. Share both!"
+    try:
+        logging.info(
+            f"Creating chart with type={type}, width={width}, height={height}, format={format}, data={data}, options={options}"
+        )
+        qc = QuickChart()
+        # Set the chart width and height
+        qc.width = width
+        qc.height = height
+        # qc.config = config.model_dump(exclude_none=True)
+        if data:
+            data_dict = data.model_dump(exclude_none=True)
+        else:
+            data_dict = {}
+        if options:
+            options_dict = options.model_dump(exclude_none=True)
+        else:
+            options_dict = {}
+        qc.config = {
+            "type": type,
+            "data": data_dict,
+            "options": options_dict,
+        }
+        qc.format = format
+        chart_url = qc.get_short_url()
+        return f"Talep edilen grafik: ![Chart]({qc.get_short_url()})\nErişim için kullanılabilecek URL: {chart_url}"
+    except Exception as e:
+        logging.error(f"Error creating chart: {e}")
+        return f"Grafik oluşturulurken hata oluştu: {e}"
 
 
 # @tool
@@ -279,12 +282,12 @@ def load_excel_to_db(file_path: str, table_name: str) -> str:
 
 
 engine = get_engine_for_db(
-    "sqlite:////Users/mervesarac/Development/eguven/analiz/crm_subat.db"
+    "sqlite:////Users/mervesarac/Development/Sarac/analiz/analiz.db"
 )
 
 db = SQLDatabase(engine)
 
-llm = init_chat_model("gpt-4o-mini", model_provider="openai")
+llm = init_chat_model("gpt-4o", model_provider="openai")
 toolkit = SQLDatabaseToolkit(db=db, llm=llm)
 tool_list = toolkit.get_tools() + [create_chart]
 print(tool_list)
@@ -294,8 +297,10 @@ print(prompt_template.input_variables)
 system_message = prompt_template.format(dialect="SQLite", top_k=5)
 system_message = (
     system_message
-    + "\nYou may use create_chart to create a chart."
-    + "\nDo not answer general cultural questions. Refuse them politely."
+    + "\nPrefer to answer in Turkish."
+    + "\nYou may use user profile information shared within very first message."
+    # + "\nDo not answer general cultural questions. Refuse them politely."
+    + "\nIf the user asks for a chart, use create_chart to create it."
 )
 print(f"System message: {system_message}")
 checkpointer = MemorySaver()
