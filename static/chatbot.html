@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analiz Chatbot</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #343541;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            min-height: 100vh;
+            min-width: 100vw;
+        }
+        .chat-container {
+            width: 100vw;
+            max-width: 100vw;
+            min-width: 0;
+            margin: 0;
+            background: #444654;
+            border-radius: 0;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow-x: hidden;
+        }
+        .chat-header {
+            padding: 24px 24px 12px 24px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ececf1;
+            border-bottom: 1px solid #3e3f4b;
+        }
+        .chat-description {
+            padding: 0 24px 12px 24px;
+            color: #b4bcd0;
+            font-size: 1em;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+            max-width: 100vw;
+            box-sizing: border-box;
+        }
+        .message {
+            max-width: 80%;
+            width: fit-content;
+            padding: 12px 18px;
+            border-radius: 16px;
+            font-size: 1em;
+            line-height: 1.5;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            box-sizing: border-box;
+        }
+        .message.user {
+            align-self: flex-end;
+            background: #2a2b32;
+            color: #ececf1;
+        }
+        .message.bot {
+            align-self: flex-start;
+            background: #444654;
+            color: #ececf1;
+            border: 1px solid #565869;
+        }
+        .chat-input {
+            display: flex;
+            border-top: 1px solid #3e3f4b;
+            padding: 16px 24px;
+            background: #343541;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #565869;
+            background: #40414f;
+            color: #ececf1;
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+        }
+        .chat-input input::placeholder {
+            color: #b4bcd0;
+        }
+        .chat-input button {
+            margin-left: 12px;
+            padding: 12px 20px;
+            background: #19c37d;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .chat-input button:disabled {
+            background: #b0bec5;
+            cursor: not-allowed;
+        }
+        /* .examples and .example-btn styles can be removed if desired */
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header" style="width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <img src="static/datawise-logo.png" alt="DataWise Logo" style="height: 48px; display: block; margin: 0 auto;" onerror="this.onerror=null;this.src='https://via.placeholder.com/120x48?text=Logo';">
+            <span style="margin-top: 8px; font-size: 1.2em; font-weight: bold; color: #ececf1;">DataWise</span>
+        </div>
+        <!-- Example buttons removed -->
+        <div class="chat-messages" id="chat-messages"></div>
+        <form class="chat-input" id="chat-form">
+            <input type="text" id="chat-input" placeholder="Sorunuzu yazın..." autocomplete="off" required />
+            <button type="submit" id="send-btn">Gönder</button>
+        </form>
+    </div>
+    <script>
+        // Clear credentials on page unload (close or reload)
+        window.addEventListener('beforeunload', function() {
+            localStorage.removeItem('chatbot_username');
+            localStorage.removeItem('chatbot_password');
+        });
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        // Example buttons removed, so exampleBtns is not needed
+
+        // Optionally, prompt for username/password once per session
+
+        // Always get credentials from localStorage when needed
+        function getCredentials() {
+            return {
+                username: localStorage.getItem('chatbot_username'),
+                password: localStorage.getItem('chatbot_password')
+            };
+        }
+
+        // Disable chat UI until login, and block form submit if not logged in
+        function setChatUIEnabled(enabled) {
+            chatInput.disabled = !enabled;
+            sendBtn.disabled = !enabled;
+            // No exampleBtns to disable
+            chatForm.dataset.enabled = enabled ? '1' : '0';
+        }
+        setChatUIEnabled(false);
+
+        function showLoginModal() {
+            const modalBg = document.createElement('div');
+            modalBg.style.position = 'fixed';
+            modalBg.style.top = 0;
+            modalBg.style.left = 0;
+            modalBg.style.width = '100vw';
+            modalBg.style.height = '100vh';
+            modalBg.style.background = 'rgba(0,0,0,0.6)';
+            modalBg.style.display = 'flex';
+            modalBg.style.alignItems = 'center';
+            modalBg.style.justifyContent = 'center';
+            modalBg.style.zIndex = 10000;
+
+            const modal = document.createElement('div');
+            modal.style.background = '#23232b';
+            modal.style.padding = '32px 32px 24px 32px';
+            modal.style.borderRadius = '16px';
+            modal.style.boxShadow = '0 4px 24px rgba(0,0,0,0.18)';
+            modal.style.display = 'flex';
+            modal.style.flexDirection = 'column';
+            modal.style.gap = '16px';
+            modal.style.minWidth = '320px';
+            modal.style.maxWidth = '90vw';
+
+            const title = document.createElement('div');
+            title.textContent = 'Giriş Yap';
+            title.style.fontSize = '1.3em';
+            title.style.color = '#ececf1';
+            title.style.fontWeight = 'bold';
+            modal.appendChild(title);
+
+            const userInput = document.createElement('input');
+            userInput.type = 'text';
+            userInput.placeholder = 'Kullanıcı adı';
+            userInput.style.padding = '12px';
+            userInput.style.borderRadius = '8px';
+            userInput.style.border = '1px solid #565869';
+            userInput.style.background = '#40414f';
+            userInput.style.color = '#ececf1';
+            userInput.style.fontSize = '1em';
+            modal.appendChild(userInput);
+
+            const passInput = document.createElement('input');
+            passInput.type = 'password';
+            passInput.placeholder = 'Şifre';
+            passInput.style.padding = '12px';
+            passInput.style.borderRadius = '8px';
+            passInput.style.border = '1px solid #565869';
+            passInput.style.background = '#40414f';
+            passInput.style.color = '#ececf1';
+            passInput.style.fontSize = '1em';
+            modal.appendChild(passInput);
+
+            const errorDiv = document.createElement('div');
+            errorDiv.style.color = '#ff6b6b';
+            errorDiv.style.fontSize = '0.95em';
+            errorDiv.style.display = 'none';
+            modal.appendChild(errorDiv);
+
+            const loginBtn = document.createElement('button');
+            loginBtn.textContent = 'Giriş Yap';
+            loginBtn.style.background = '#19c37d';
+            loginBtn.style.color = '#fff';
+            loginBtn.style.border = 'none';
+            loginBtn.style.borderRadius = '8px';
+            loginBtn.style.padding = '12px 0';
+            loginBtn.style.fontSize = '1em';
+            loginBtn.style.cursor = 'pointer';
+            loginBtn.style.marginTop = '8px';
+            modal.appendChild(loginBtn);
+
+            loginBtn.onclick = async function() {
+                const u = userInput.value.trim();
+                const p = passInput.value.trim();
+                if (!u || !p) {
+                    errorDiv.textContent = 'Kullanıcı adı ve şifre gerekli.';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                // Try a dummy request to check credentials
+                try {
+                    const resp = await fetch('/healthz', {
+                        headers: {
+                            'Authorization': 'Basic ' + btoa(u + ':' + p)
+                        }
+                    });
+                    if (resp.ok) {
+                        localStorage.setItem('chatbot_username', u);
+                        localStorage.setItem('chatbot_password', p);
+                        setChatUIEnabled(true);
+                        document.body.removeChild(modalBg);
+                    } else {
+                        errorDiv.textContent = 'Giriş başarısız. Kullanıcı adı ve şifreyi kontrol edin.';
+                        errorDiv.style.display = 'block';
+                    }
+                } catch (e) {
+                    errorDiv.textContent = 'Sunucuya ulaşılamıyor.';
+                    errorDiv.style.display = 'block';
+                }
+            };
+
+            modalBg.appendChild(modal);
+            document.body.appendChild(modalBg);
+            userInput.focus();
+            userInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') passInput.focus(); });
+            passInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') loginBtn.click(); });
+        }
+
+        // Always check login at page load
+        window.addEventListener('DOMContentLoaded', function() {
+            // Always clear credentials if missing or default
+            let creds = getCredentials();
+            if (!creds.username || !creds.password || creds.username === 'user') {
+                localStorage.removeItem('chatbot_username');
+                localStorage.removeItem('chatbot_password');
+                setChatUIEnabled(false);
+                showLoginModal();
+            } else {
+                setChatUIEnabled(true);
+            }
+        });
+
+
+        // Render markdown to HTML (uses marked.js if available, else fallback)
+        function renderMarkdown(text) {
+            if (window.marked) {
+                return window.marked.parse(text);
+            } else {
+                // Fallback: basic newlines to <br>
+                return text.replace(/\n/g, '<br>');
+            }
+        }
+
+        function addMessage(text, sender) {
+            if (sender === 'bot') {
+                // Create a flex wrapper for logo and message
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'flex';
+                wrapper.style.alignItems = 'flex-start';
+                wrapper.style.marginTop = '0.5em';
+                // Logo
+                const logo = document.createElement('img');
+                logo.src = 'static/datawise-logo.png';
+                logo.alt = 'DataWise Logo';
+                logo.style.height = '24px';
+                logo.style.width = '24px';
+                logo.style.marginRight = '10px';
+                logo.style.marginTop = '2px';
+                logo.style.flexShrink = '0';
+                logo.onerror = function() { this.onerror=null; this.src='https://via.placeholder.com/24x24?text=Logo'; };
+                // Message bubble
+                const msg = document.createElement('div');
+                msg.className = 'message bot';
+                msg.innerHTML = renderMarkdown(text);
+                wrapper.appendChild(logo);
+                wrapper.appendChild(msg);
+                chatMessages.appendChild(wrapper);
+            } else {
+                const msg = document.createElement('div');
+                msg.className = 'message ' + sender;
+                msg.textContent = text;
+                chatMessages.appendChild(msg);
+            }
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+
+        // Conversation ID persistence
+        let conversationId = localStorage.getItem('chatbot_conversation_id') || null;
+
+        async function sendMessage(message) {
+            addMessage(message, 'user');
+            setChatUIEnabled(false);
+            chatInput.value = '';
+            const creds = getCredentials();
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa(creds.username + ':' + creds.password)
+                    },
+                    body: JSON.stringify({ text: message, conversation_id: conversationId })
+                });
+                if (!response.ok) {
+                    let err = await response.json();
+                    addMessage('Hata: ' + (err.error || response.statusText), 'bot');
+                } else {
+                    const data = await response.json();
+                    if (data.conversation_id) {
+                        conversationId = data.conversation_id;
+                        localStorage.setItem('chatbot_conversation_id', conversationId);
+                    }
+                    addMessage(data.response, 'bot');
+                }
+            } catch (e) {
+                addMessage('Sunucuya ulaşılamıyor.', 'bot');
+            } finally {
+                setChatUIEnabled(true);
+            }
+        }
+
+        chatForm.addEventListener('submit', function(e) {
+            if (chatForm.dataset.enabled !== '1') {
+                e.preventDefault();
+                return;
+            }
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (message) {
+                sendMessage(message);
+            }
+        });
+
+        // Example button click handler removed
+
+        // Load marked.js for markdown rendering
+        (function loadMarked() {
+            if (!window.marked) {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+                script.onload = function() { /* marked loaded */ };
+                document.head.appendChild(script);
+            }
+        })();
+    </script>
+</body>
+</html>

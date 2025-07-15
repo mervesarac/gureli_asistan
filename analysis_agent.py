@@ -195,7 +195,7 @@ def create_chart(
         }
         qc.format = format
         chart_url = qc.get_short_url()
-        return f"Talep edilen grafik: ![Chart]({qc.get_short_url()})\nErişim için kullanılabilecek URL: {chart_url}"
+        return f"\nTalep edilen grafik:\n\n![Chart]({qc.get_short_url()})\n\nErişim için kullanılabilecek URL: {chart_url}\n"
     except Exception as e:
         logging.error(f"Error creating chart: {e}")
         return f"Grafik oluşturulurken hata oluştu: {e}"
@@ -287,13 +287,13 @@ engine = get_engine_for_db(
 
 db = SQLDatabase(engine)
 
-llm = init_chat_model("gpt-4o", model_provider="openai")
+llm = init_chat_model("gpt-4o-mini", model_provider="openai")
 toolkit = SQLDatabaseToolkit(db=db, llm=llm)
 tool_list = toolkit.get_tools() + [create_chart]
-print(tool_list)
+# print(tool_list)
 prompt_template = hub.pull("langchain-ai/sql-agent-system-prompt")
 assert len(prompt_template.messages) == 1
-print(prompt_template.input_variables)
+# print(prompt_template.input_variables)
 system_message = prompt_template.format(dialect="SQLite", top_k=5)
 system_message = (
     system_message
@@ -302,8 +302,30 @@ system_message = (
     # + "\nDo not answer general cultural questions. Refuse them politely."
     + "\nIf the user asks for a chart, use create_chart to create it."
 )
-print(f"System message: {system_message}")
+# print(f"System message: {system_message}")
 checkpointer = MemorySaver()
 agent_executor = create_react_agent(
-    llm, tool_list, prompt=system_message, checkpointer=checkpointer, debug=True
+    llm, tool_list, prompt=system_message, checkpointer=checkpointer, debug=False
 )
+history = {}
+
+async def bot_answer(message, conversation_id, username):
+    config = {"configurable": {"thread_id": conversation_id}, "recursion_limit": 25}
+
+    # Retrieve conversation history for this conversation_id
+    if conversation_id not in history:
+        history[conversation_id] = []
+    # Append the new user message
+    history[conversation_id].append(("user", message))
+
+    # Pass the full message history to the agent
+    response = await agent_executor.ainvoke(
+        {"messages": history[conversation_id]}, config=config,
+    )
+
+    # Append the assistant's reply to the history
+    assistant_message = ("assistant", response['messages'][-1].content)
+    history[conversation_id].append(assistant_message)
+    logging.info("<" * 80)
+    logging.info(response['messages'][-1].content)
+    return response['messages'][-1].content
