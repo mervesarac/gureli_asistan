@@ -4,7 +4,7 @@ import asyncio
 import json
 import uuid
 import gradio as gr
-from eguven_analysis_agent import agent_executor
+from analysis_agent import agent_executor
 from faker import Faker
 from faker_music import MusicProvider
 
@@ -45,7 +45,9 @@ def main():
 
     logging.basicConfig(
         level=logging.INFO,
-        format="\033[93m%(asctime)s - %(levelname)s - %(name)s - %(module)s - %(funcName)s -\033[0m %(message)s",
+        format="%(asctime)s - %(levelname)s - %(name)s - %(module)s - %(funcName)s - %(message)s",
+        filename="gradio_chat.log",
+        filemode="a"
     )
 
     conversation_id = str(uuid.uuid4())
