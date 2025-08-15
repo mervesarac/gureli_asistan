@@ -1,7 +1,5 @@
 import logging
-import json
-from logging import config
-import urllib.parse
+import pandas as pd
 
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain.chat_models import init_chat_model
@@ -19,124 +17,189 @@ from sqlalchemy.pool import StaticPool
 from dotenv import load_dotenv
 
 from typing import List, Optional, Union, Literal, Dict
-from pydantic import BaseModel, Field
-import pandas as pd
+
+from pydantic import BaseModel, Field, ConfigDict
+
+class BaseLooseModel(BaseModel):
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+class Dataset(BaseLooseModel):
+    label: str | None = None
+    # Accept numbers OR {x,y}[,r] dicts as strings too; coerce when you use it
+    data: list[dict | int | float | str]
+    backgroundColor: str | list[str] | None = None
+    borderColor: str | list[str] | None = None
+    borderWidth: int | None = None
+    fill: bool | str | None = None
+    type: str | None = None
+    yAxisID: str | None = None
+    stack: str | None = None
+
+class Data(BaseLooseModel):
+    labels: list[int | str] | None = None
+    datasets: list[Dataset]
+
+class TitleOptions(BaseLooseModel):
+    display: bool | None = True
+    text: str | None = None
+    fontSize: int | None = None
+    fontColor: str | None = None
+    position: str | None = None  # drop Literal[...]
+
+class LegendOptions(BaseLooseModel):
+    display: bool | None = True
+    position: str | None = "top"
+
+class TooltipOptions(BaseLooseModel):
+    enabled: bool | None = True
+    mode: str | None = None
+    intersect: bool | None = None
+
+class AxisTicks(BaseLooseModel):
+    beginAtZero: bool | None = None
+    min: float | None = None
+    max: float | None = None
+
+class AxisScale(BaseLooseModel):
+    display: bool | None = True
+    ticks: AxisTicks | None = None
+    scaleLabel: dict[str, str | bool] | None = None
+
+class Scales(BaseLooseModel):
+    xAxes: list[AxisScale] | None = None
+    yAxes: list[AxisScale] | None = None
+
+class Options(BaseLooseModel):
+    responsive: bool | None = True
+    title: TitleOptions | None = None
+    legend: LegendOptions | None = None
+    tooltips: TooltipOptions | None = None
+    scales: Scales | None = None
+    maintainAspectRatio: bool | None = None
+
+class QuickChartConfig(BaseLooseModel):
+    type: str
+    data: Data
+    options: Options | None = None
+    # make these truly optional with sane defaults
+    width: int = 500
+    height: int = 300
+    format: str = "png"
+
+# class Dataset(BaseModel):
+#     label: Optional[str] = Field(None, description="The label for the dataset.")
+#     data: List[Union[int, float, dict]] = Field(
+#         ...,
+#         description="The data points for the dataset. Should be in {x, y} format for scatter charts, and in {x, y, r} format for bubble charts.",
+#     )
+#     backgroundColor: Optional[Union[str, List[str]]] = Field(
+#         None, description="Background color(s) for the dataset."
+#     )
+#     borderColor: Optional[Union[str, List[str]]] = Field(
+#         None, description="Border color(s) for the dataset."
+#     )
+#     borderWidth: Optional[int] = Field(None, description="Width of the dataset border.")
+#     fill: Optional[Union[bool, str]] = Field(
+#         None, description="Whether to fill the dataset area."
+#     )
+#     type: Optional[str] = Field(
+#         None, description="Type of the dataset, e.g., line or bar."
+#     )
+#     yAxisID: Optional[str] = Field(
+#         None, description="ID of the Y-axis to bind this dataset to."
+#     )
+#     stack: Optional[str] = Field(None, description="Stack group for stacked charts.")
 
 
-class Dataset(BaseModel):
-    label: Optional[str] = Field(None, description="The label for the dataset.")
-    data: List[Union[int, float, dict]] = Field(
-        ...,
-        description="The data points for the dataset. Should be in {x, y} format for scatter charts, and in {x, y, r} format for bubble charts.",
-    )
-    backgroundColor: Optional[Union[str, List[str]]] = Field(
-        None, description="Background color(s) for the dataset."
-    )
-    borderColor: Optional[Union[str, List[str]]] = Field(
-        None, description="Border color(s) for the dataset."
-    )
-    borderWidth: Optional[int] = Field(None, description="Width of the dataset border.")
-    fill: Optional[Union[bool, str]] = Field(
-        None, description="Whether to fill the dataset area."
-    )
-    type: Optional[str] = Field(
-        None, description="Type of the dataset, e.g., line or bar."
-    )
-    yAxisID: Optional[str] = Field(
-        None, description="ID of the Y-axis to bind this dataset to."
-    )
-    stack: Optional[str] = Field(None, description="Stack group for stacked charts.")
+# class Data(BaseModel):
+#     labels: Optional[List[Union[int, str]]] = Field(
+#         None, description="Labels for the X-axis. Not used with scatter charts, nor with bubble charts."
+#     )
+#     datasets: List[Dataset] = Field(..., description="List of datasets to be plotted.")
 
 
-class Data(BaseModel):
-    labels: Optional[List[Union[int, str]]] = Field(
-        None, description="Labels for the X-axis. Not used with scatter charts, nor with bubble charts."
-    )
-    datasets: List[Dataset] = Field(..., description="List of datasets to be plotted.")
+# class TitleOptions(BaseModel):
+#     display: Optional[bool] = Field(
+#         True, description="Whether to display the chart title."
+#     )
+#     text: Optional[str] = Field(None, description="Text of the chart title.")
+#     fontSize: Optional[int] = Field(None, description="Font size of the title.")
+#     fontColor: Optional[str] = Field(None, description="Color of the title text.")
+#     position: Optional[Literal["top", "left", "bottom", "right"]] = Field(
+#         None, description="Position of the title."
+#     )
 
 
-class TitleOptions(BaseModel):
-    display: Optional[bool] = Field(
-        True, description="Whether to display the chart title."
-    )
-    text: Optional[str] = Field(None, description="Text of the chart title.")
-    fontSize: Optional[int] = Field(None, description="Font size of the title.")
-    fontColor: Optional[str] = Field(None, description="Color of the title text.")
-    position: Optional[Literal["top", "left", "bottom", "right"]] = Field(
-        None, description="Position of the title."
-    )
+# class LegendOptions(BaseModel):
+#     display: Optional[bool] = Field(
+#         True, description="Whether to display the chart legend."
+#     )
+#     position: Optional[Literal["top", "left", "bottom", "right"]] = Field(
+#         "top", description="Position of the legend."
+#     )
 
 
-class LegendOptions(BaseModel):
-    display: Optional[bool] = Field(
-        True, description="Whether to display the chart legend."
-    )
-    position: Optional[Literal["top", "left", "bottom", "right"]] = Field(
-        "top", description="Position of the legend."
-    )
+# class TooltipOptions(BaseModel):
+#     enabled: Optional[bool] = Field(True, description="Whether tooltips are enabled.")
+#     mode: Optional[str] = Field(
+#         None, description="Mode of the tooltip, e.g., index or dataset."
+#     )
+#     intersect: Optional[bool] = Field(
+#         None, description="Whether tooltips should intersect with items."
+#     )
 
 
-class TooltipOptions(BaseModel):
-    enabled: Optional[bool] = Field(True, description="Whether tooltips are enabled.")
-    mode: Optional[str] = Field(
-        None, description="Mode of the tooltip, e.g., index or dataset."
-    )
-    intersect: Optional[bool] = Field(
-        None, description="Whether tooltips should intersect with items."
-    )
+# class AxisTicks(BaseModel):
+#     beginAtZero: Optional[bool] = Field(
+#         None, description="Whether the scale should start at zero."
+#     )
+#     min: Optional[float] = Field(None, description="Minimum tick value.")
+#     max: Optional[float] = Field(None, description="Maximum tick value.")
 
 
-class AxisTicks(BaseModel):
-    beginAtZero: Optional[bool] = Field(
-        None, description="Whether the scale should start at zero."
-    )
-    min: Optional[float] = Field(None, description="Minimum tick value.")
-    max: Optional[float] = Field(None, description="Maximum tick value.")
+# class AxisScale(BaseModel):
+#     display: Optional[bool] = Field(True, description="Whether to display the axis.")
+#     ticks: Optional[AxisTicks] = Field(
+#         None, description="Tick configuration for the axis."
+#     )
+#     scaleLabel: Optional[Dict[str, Union[str, bool]]] = Field(
+#         None, description="Label configuration for the scale."
+#     )
 
 
-class AxisScale(BaseModel):
-    display: Optional[bool] = Field(True, description="Whether to display the axis.")
-    ticks: Optional[AxisTicks] = Field(
-        None, description="Tick configuration for the axis."
-    )
-    scaleLabel: Optional[Dict[str, Union[str, bool]]] = Field(
-        None, description="Label configuration for the scale."
-    )
+# class Scales(BaseModel):
+#     xAxes: Optional[List[AxisScale]] = Field(
+#         None, description="List of X-axis configurations."
+#     )
+#     yAxes: Optional[List[AxisScale]] = Field(
+#         None, description="List of Y-axis configurations."
+#     )
 
 
-class Scales(BaseModel):
-    xAxes: Optional[List[AxisScale]] = Field(
-        None, description="List of X-axis configurations."
-    )
-    yAxes: Optional[List[AxisScale]] = Field(
-        None, description="List of Y-axis configurations."
-    )
+# class Options(BaseModel):
+#     responsive: Optional[bool] = Field(
+#         True, description="Whether the chart should be responsive."
+#     )
+#     title: Optional[TitleOptions] = Field(None, description="Chart title options.")
+#     legend: Optional[LegendOptions] = Field(None, description="Chart legend options.")
+#     tooltips: Optional[TooltipOptions] = Field(
+#         None, description="Chart tooltip options."
+#     )
+#     scales: Optional[Scales] = Field(None, description="Chart scales configuration.")
+#     maintainAspectRatio: Optional[bool] = Field(
+#         None, description="Whether to maintain aspect ratio."
+#     )
 
 
-class Options(BaseModel):
-    responsive: Optional[bool] = Field(
-        True, description="Whether the chart should be responsive."
-    )
-    title: Optional[TitleOptions] = Field(None, description="Chart title options.")
-    legend: Optional[LegendOptions] = Field(None, description="Chart legend options.")
-    tooltips: Optional[TooltipOptions] = Field(
-        None, description="Chart tooltip options."
-    )
-    scales: Optional[Scales] = Field(None, description="Chart scales configuration.")
-    maintainAspectRatio: Optional[bool] = Field(
-        None, description="Whether to maintain aspect ratio."
-    )
-
-
-class QuickChartConfig(BaseModel):
-    type: str = Field(..., description="Type of the chart, e.g., bar, line.")
-    data: Data = Field(..., description="Chart data including labels and datasets.")
-    options: Optional[Options] = Field(None, description="Additional chart options.")
-    width: Optional[int] = Field(..., description="Width of the chart.")
-    height: Optional[int] = Field(..., description="Height of the chart.")
-    format: Optional[Literal["png", "jpeg", "webp", "svg"]] = Field(
-        "png", description="Format of the chart image."
-    )
+# class QuickChartConfig(BaseModel):
+#     type: str = Field(..., description="Type of the chart, e.g., bar, line.")
+#     data: Data = Field(..., description="Chart data including labels and datasets.")
+#     options: Optional[Options] = Field(None, description="Additional chart options.")
+#     width: Optional[int] = Field(..., description="Width of the chart.")
+#     height: Optional[int] = Field(..., description="Height of the chart.")
+#     format: Optional[Literal["png", "jpeg", "webp", "svg"]] = Field(
+#         "png", description="Format of the chart image."
+#     )
 
 
 class CreateChartInput(BaseModel):
@@ -151,7 +214,7 @@ class CreateChartInput(BaseModel):
 load_dotenv()
 
 
-@tool("create_chart", args_schema=QuickChartConfig, return_direct=True)
+@tool("create_chart", args_schema=QuickChartConfig)
 def create_chart(
     type: str = "bar",
     data: Data = None,
@@ -303,29 +366,41 @@ system_message = (
     + "\nIf the user asks for a chart, use create_chart to create it."
 )
 # print(f"System message: {system_message}")
+# checkpointer = MemorySaver()
+# agent_executor = create_react_agent(
+#     llm, tool_list, prompt=system_message, checkpointer=checkpointer, debug=False
+# )
+# history = {}
+
+# async def bot_answer(message, conversation_id, username):
+#     config = {"configurable": {"thread_id": conversation_id}, "recursion_limit": 25}
+
+#     # Retrieve conversation history for this conversation_id
+#     if conversation_id not in history:
+#         history[conversation_id] = []
+#     # Append the new user message
+#     history[conversation_id].append(("user", message))
+
+#     # Pass the full message history to the agent
+#     response = await agent_executor.ainvoke(
+#         {"messages": history[conversation_id]}, config=config,
+#     )
+
+#     # Append the assistant's reply to the history
+#     assistant_message = ("assistant", response['messages'][-1].content)
+#     history[conversation_id].append(assistant_message)
+#     logging.info("<" * 80)
+#     logging.info(response['messages'][-1].content)
+#     return response['messages'][-1].content
+
 checkpointer = MemorySaver()
+
 agent_executor = create_react_agent(
     llm, tool_list, prompt=system_message, checkpointer=checkpointer, debug=False
 )
-history = {}
 
 async def bot_answer(message, conversation_id, username):
     config = {"configurable": {"thread_id": conversation_id}, "recursion_limit": 25}
-
-    # Retrieve conversation history for this conversation_id
-    if conversation_id not in history:
-        history[conversation_id] = []
-    # Append the new user message
-    history[conversation_id].append(("user", message))
-
-    # Pass the full message history to the agent
-    response = await agent_executor.ainvoke(
-        {"messages": history[conversation_id]}, config=config,
-    )
-
-    # Append the assistant's reply to the history
-    assistant_message = ("assistant", response['messages'][-1].content)
-    history[conversation_id].append(assistant_message)
-    logging.info("<" * 80)
-    logging.info(response['messages'][-1].content)
-    return response['messages'][-1].content
+    # Only the new message – no manual history
+    response = await agent_executor.ainvoke({"messages": [("user", message)]}, config=config)
+    return response["messages"][-1].content
