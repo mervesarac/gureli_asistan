@@ -345,7 +345,7 @@ def load_excel_to_db(file_path: str, table_name: str) -> str:
 
 
 engine = get_engine_for_db(
-    "sqlite:////Users/mervesarac/Development/Sarac/analiz/analiz.db"
+    "sqlite:///C:\\Users\\mrvsr\\Development\\Gureli\\asistan\\analiz.db"
 )
 
 db = SQLDatabase(engine)

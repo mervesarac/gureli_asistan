@@ -8,7 +8,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from analysis_agent import bot_answer
 from fastapi.staticfiles import StaticFiles
 
-app = FastAPI(title="Paperzero Chatbot API")
+app = FastAPI(title="Gureli Denetim Asistanı API")
 security = HTTPBasic()
 
 # Simple auth: username == password
@@ -18,12 +18,12 @@ def same_auth(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 # Logging setup
-# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(name)s - %(module)s - %(funcName)s - %(message)s",
     filename=os.path.join(os.path.dirname(__file__), "data", "analiz-bot.log"),
-    filemode="a"
+    filemode="a",
+    encoding="utf-8"
 )
 
 # Serve static files (for chatbot.html and assets)
@@ -41,8 +41,9 @@ async def chat_endpoint(request: Request, username: str = Depends(same_auth)):
     if not message:
         return JSONResponse(status_code=400, content={"error": "Missing 'text' in request body."})
     logging.info(">" * 80)
-    logging.info(f"[{username}]:[{conversation_id}] {message}")
+    logging.info(f"[FROM {username}]:[{conversation_id}] {message}")
     response = await bot_answer(message, conversation_id, username)
+    logging.info(f"[TO   {username}]:[{conversation_id}] {str(response)}")
     return {"response": response, "conversation_id": conversation_id}
 
 
