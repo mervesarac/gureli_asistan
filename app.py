@@ -5,7 +5,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from analysis_agent import bot_answer
+from db_agent import bot_answer
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Gureli Denetim Asistanı API")

@@ -365,33 +365,6 @@ system_message = (
     # + "\nDo not answer general cultural questions. Refuse them politely."
     + "\nIf the user asks for a chart, use create_chart to create it."
 )
-# print(f"System message: {system_message}")
-# checkpointer = MemorySaver()
-# agent_executor = create_react_agent(
-#     llm, tool_list, prompt=system_message, checkpointer=checkpointer, debug=False
-# )
-# history = {}
-
-# async def bot_answer(message, conversation_id, username):
-#     config = {"configurable": {"thread_id": conversation_id}, "recursion_limit": 25}
-
-#     # Retrieve conversation history for this conversation_id
-#     if conversation_id not in history:
-#         history[conversation_id] = []
-#     # Append the new user message
-#     history[conversation_id].append(("user", message))
-
-#     # Pass the full message history to the agent
-#     response = await agent_executor.ainvoke(
-#         {"messages": history[conversation_id]}, config=config,
-#     )
-
-#     # Append the assistant's reply to the history
-#     assistant_message = ("assistant", response['messages'][-1].content)
-#     history[conversation_id].append(assistant_message)
-#     logging.info("<" * 80)
-#     logging.info(response['messages'][-1].content)
-#     return response['messages'][-1].content
 
 checkpointer = MemorySaver()
 
