@@ -402,7 +402,6 @@ TOOLS = [
 ]
 
 LLM = init_chat_model("openai:gpt-4.1")
-AGENT = create_react_agent(LLM, TOOLS, prompt=SYSTEM_PROMPT)
 checkpointer = MemorySaver()
 
 AGENT = create_react_agent(

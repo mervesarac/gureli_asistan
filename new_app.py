@@ -8,17 +8,12 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from db_agent_class import SQLGraphAgent
 from fastapi.staticfiles import StaticFiles
 
-# Create agent instance
 uri_params = dict(
     dialect="sqlite",
     database="C:\\Users\\mrvsr\\Development\\Gureli\\asistan\\analiz.db",
 )
 
 agent = SQLGraphAgent(**uri_params)
-
-async def bot_answer(message, conversation_id, username):
-    """Async wrapper for the agent's ask method."""
-    return await agent.ask(message, conversation_id, username)
 
 app = FastAPI(title="Gureli Denetim Asistanı API")
 security = HTTPBasic()
@@ -54,7 +49,7 @@ async def chat_endpoint(request: Request, username: str = Depends(same_auth)):
         return JSONResponse(status_code=400, content={"error": "Missing 'text' in request body."})
     logging.info(">" * 80)
     logging.info(f"[FROM {username}]:[{conversation_id}] {message}")
-    response = await bot_answer(message, conversation_id, username)
+    response = await agent.ask(message, conversation_id, username)
     logging.info(f"[TO   {username}]:[{conversation_id}] {str(response)}")
     return {"response": response, "conversation_id": conversation_id}
 
