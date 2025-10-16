@@ -235,7 +235,15 @@ class SQLGraphAgent:
     def _auto_limit(self, query: str) -> str:
         ql = query.lower()
         if "select" in ql and "count(" not in ql and " limit " not in ql and " top " not in ql:
-            dialect_name = getattr(self.db, "dialect", "").name if hasattr(self.db, "dialect") else ""
+            # Get dialect name safely
+            dialect_name = ""
+            if hasattr(self.db, "dialect"):
+                dialect_obj = self.db.dialect
+                if hasattr(dialect_obj, "name"):
+                    dialect_name = dialect_obj.name
+                elif isinstance(dialect_obj, str):
+                    dialect_name = dialect_obj
+            
             if dialect_name in {"postgresql", "mysql", "sqlite", "duckdb"}:
                 return query.rstrip("; ") + f" LIMIT {self.default_row_limit}"
             else:
